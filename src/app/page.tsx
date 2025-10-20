@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { io, Socket } from 'socket.io-client';
 import { Github } from 'lucide-react';
 
 type ConnectionState = 'idle' | 'creating' | 'created' | 'joining' | 'connected';
@@ -63,88 +62,110 @@ export default function Home() {
   const [error, setError] = useState('');
   const [files, setFiles] = useState<FileTransfer[]>([]);
   
-  const socketRef = useRef<Socket | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const dataChannelRef = useRef<RTCDataChannel | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingCandidatesRef = useRef<RTCIceCandidate[]>([]);
   const tunnelCodeRef = useRef<string>('');
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const peerIdRef = useRef<string>('');
 
   useEffect(() => {
-    socketRef.current = io({
-      transports: ['websocket', 'polling']
-    });
-    
-    const handlePeerJoined = async ({ peerId }: { peerId: string }) => {
-      await createOffer(peerId);
-    };
-
-    const handleSignal = async ({ signal, from }: { signal: any; from: string }) => {
-      if (!peerConnectionRef.current) {
-        await setupPeerConnection(from);
-      }
-
-      if (signal.type === 'offer') {
-        await peerConnectionRef.current!.setRemoteDescription(new RTCSessionDescription(signal));
-        
-        if (pendingCandidatesRef.current.length > 0) {
-          for (const candidate of pendingCandidatesRef.current) {
-            await peerConnectionRef.current!.addIceCandidate(candidate);
-          }
-          pendingCandidatesRef.current = [];
-        }
-        
-        const answer = await peerConnectionRef.current!.createAnswer();
-        await peerConnectionRef.current!.setLocalDescription(answer);
-        socketRef.current!.emit('signal', { code: tunnelCodeRef.current, signal: answer, to: from });
-      } else if (signal.type === 'answer') {
-        await peerConnectionRef.current!.setRemoteDescription(new RTCSessionDescription(signal));
-        
-        if (pendingCandidatesRef.current.length > 0) {
-          for (const candidate of pendingCandidatesRef.current) {
-            await peerConnectionRef.current!.addIceCandidate(candidate);
-          }
-          pendingCandidatesRef.current = [];
-        }
-      } else if (signal.candidate) {
-        try {
-          const candidate = new RTCIceCandidate(signal.candidate);
-          
-          if (peerConnectionRef.current?.remoteDescription) {
-            await peerConnectionRef.current.addIceCandidate(candidate);
-          } else {
-            pendingCandidatesRef.current.push(candidate);
-          }
-        } catch (e) {
-          console.error('Error adding ICE candidate:', e);
-        }
-      }
-    };
-
-    const handlePeerDisconnected = () => {
-      setState('idle');
-      setTunnelCode('');
-      tunnelCodeRef.current = '';
-      setError('Peer disconnected');
-      cleanup();
-    };
-
-    socketRef.current.on('peer-joined', handlePeerJoined);
-    socketRef.current.on('signal', handleSignal);
-    socketRef.current.on('peer-disconnected', handlePeerDisconnected);
-
     return () => {
-      socketRef.current?.disconnect();
       cleanup();
     };
   }, []);
 
   const cleanup = () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
     dataChannelRef.current?.close();
     peerConnectionRef.current?.close();
     dataChannelRef.current = null;
     peerConnectionRef.current = null;
     pendingCandidatesRef.current = [];
+  };
+
+  const startPolling = (code: string, peerId: string) => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+    
+    pollingIntervalRef.current = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/tunnel/poll?code=${code}&peerId=${peerId}`);
+        const data = await response.json();
+        
+        if (data.success && data.signals.length > 0) {
+          for (const signalData of data.signals) {
+            await handleSignal(signalData);
+          }
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+      }
+    }, 1000);
+  };
+
+  const handleSignal = async ({ signal, from }: { signal: any; from: string }) => {
+    if (!peerConnectionRef.current) {
+      await setupPeerConnection(from);
+    }
+
+    if (signal.type === 'offer') {
+      await peerConnectionRef.current!.setRemoteDescription(new RTCSessionDescription(signal));
+      
+      if (pendingCandidatesRef.current.length > 0) {
+        for (const candidate of pendingCandidatesRef.current) {
+          await peerConnectionRef.current!.addIceCandidate(candidate);
+        }
+        pendingCandidatesRef.current = [];
+      }
+      
+      const answer = await peerConnectionRef.current!.createAnswer();
+      await peerConnectionRef.current!.setLocalDescription(answer);
+      await sendSignal(tunnelCodeRef.current, answer, from);
+    } else if (signal.type === 'answer') {
+      await peerConnectionRef.current!.setRemoteDescription(new RTCSessionDescription(signal));
+      
+      if (pendingCandidatesRef.current.length > 0) {
+        for (const candidate of pendingCandidatesRef.current) {
+          await peerConnectionRef.current!.addIceCandidate(candidate);
+        }
+        pendingCandidatesRef.current = [];
+      }
+    } else if (signal.candidate) {
+      try {
+        const candidate = new RTCIceCandidate(signal.candidate);
+        
+        if (peerConnectionRef.current?.remoteDescription) {
+          await peerConnectionRef.current.addIceCandidate(candidate);
+        } else {
+          pendingCandidatesRef.current.push(candidate);
+        }
+      } catch (e) {
+        console.error('Error adding ICE candidate:', e);
+      }
+    }
+  };
+
+  const sendSignal = async (code: string, signal: any, to: string) => {
+    try {
+      await fetch('/api/tunnel/signal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code,
+          signal,
+          from: peerIdRef.current,
+          to
+        })
+      });
+    } catch (error) {
+      console.error('Error sending signal:', error);
+    }
   };
 
   const setupPeerConnection = async (peerId: string) => {
@@ -157,11 +178,7 @@ export default function Home() {
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        socketRef.current!.emit('signal', {
-          code: tunnelCodeRef.current,
-          signal: { candidate: event.candidate },
-          to: peerId
-        });
+        sendSignal(tunnelCodeRef.current, { candidate: event.candidate }, peerId);
       }
     };
 
@@ -181,7 +198,7 @@ export default function Home() {
     const offer = await peerConnectionRef.current!.createOffer();
     await peerConnectionRef.current!.setLocalDescription(offer);
     
-    socketRef.current!.emit('signal', { code: tunnelCodeRef.current, signal: offer, to: peerId });
+    await sendSignal(tunnelCodeRef.current, offer, peerId);
   };
 
   const setupDataChannel = (channel: RTCDataChannel) => {
@@ -268,17 +285,37 @@ export default function Home() {
     };
   };
 
-  const handleCreateTunnel = () => {
+  const handleCreateTunnel = async () => {
     setState('creating');
     setError('');
-    socketRef.current!.emit('create-tunnel', ({ code }: { code: string }) => {
-      setTunnelCode(code);
-      tunnelCodeRef.current = code;
-      setState('created');
-    });
+    
+    try {
+      const response = await fetch('/api/tunnel/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setTunnelCode(data.code);
+        tunnelCodeRef.current = data.code;
+        peerIdRef.current = data.tunnelId;
+        setState('created');
+        
+        // Start polling for peer joins
+        startPolling(data.code, data.tunnelId);
+      } else {
+        setError(data.error || 'Failed to create tunnel');
+        setState('idle');
+      }
+    } catch (error) {
+      setError('Failed to create tunnel');
+      setState('idle');
+    }
   };
 
-  const handleJoinTunnel = () => {
+  const handleJoinTunnel = async () => {
     if (!inputCode.trim()) {
       setError('Please enter a tunnel code');
       return;
@@ -289,16 +326,34 @@ export default function Home() {
     
     const codeToJoin = inputCode.toUpperCase().trim();
     
-    socketRef.current!.emit('join-tunnel', { code: codeToJoin }, async (response: any) => {
-      if (response.success) {
+    try {
+      const response = await fetch('/api/tunnel/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: codeToJoin })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
         setTunnelCode(codeToJoin);
         tunnelCodeRef.current = codeToJoin;
-        await setupPeerConnection(response.peerId);
+        peerIdRef.current = data.joinerId;
+        await setupPeerConnection(data.peerId);
+        
+        // Start polling for signals
+        startPolling(codeToJoin, data.joinerId);
+        
+        // Create offer to initiate connection
+        await createOffer(data.peerId);
       } else {
-        setError(response.error);
+        setError(data.error);
         setState('idle');
       }
-    });
+    } catch (error) {
+      setError('Failed to join tunnel');
+      setState('idle');
+    }
   };
 
   const sendFile = (file: File, channel: RTCDataChannel) => {
