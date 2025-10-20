@@ -3,20 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node server.js",
+    "dev": "next dev",
     "build": "next build",
-    "start": "cross-env NODE_ENV=production node server.js",
-    "start:win": "set NODE_ENV=production && node server.js",
-    "start:unix": "NODE_ENV=production node server.js",
+    "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
     "lucide-react": "^0.546.0",
     "next": "15.5.6",
     "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1"
+    "react-dom": "19.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

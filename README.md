@@ -1,8 +1,10 @@
-# Tunnel
+# Tunnel 🚇
 
 ![Tunnel Logo](public/logo.png)
 
 A **free, open-source** peer-to-peer file sharing application built with Next.js and WebRTC. Share files directly between devices without any server storage - completely private and fast!
+
+**[🌐 Live Demo](https://tunnel-flax.vercel.app/)**
 
 ## 🎯 Why I Built This
 
@@ -49,17 +51,18 @@ Tunnel solves all these problems by enabling **direct device-to-device** file tr
 │ └─────────────┘ │               │ └─────────────┘ │
 └─────────────────┘               └─────────────────┘
          │                                 │
-         └───────── Socket.io ─────────────┘
+         └───────── API Routes ────────────┘
                     Signaling
                     Server
 ```
 
 ### Architecture Overview
 
-1. **Signaling Server** (Socket.io)
-   - Helps devices find each other
-   - Exchanges WebRTC connection info
-   - Manages tunnel codes
+1. **API Routes** (Next.js/Vercel)
+   - `/api/tunnel/create` - Creates tunnel and returns code
+   - `/api/tunnel/join` - Joins existing tunnel
+   - `/api/tunnel/signal` - Exchanges WebRTC connection info
+   - `/api/tunnel/poll` - Client polls for new signals
    - **No file data passes through**
 
 2. **WebRTC Connection**
@@ -73,6 +76,11 @@ Tunnel solves all these problems by enabling **direct device-to-device** file tr
    - Chunked data transmission
    - Flow control for large files
    - Progress tracking
+
+4. **Persistent Storage**
+   - File-based tunnel storage (`tunnels.json`)
+   - Survives serverless function restarts
+   - Production-ready with Redis/database support
 
 ## 🚀 Installation & Setup
 
@@ -105,6 +113,12 @@ Tunnel solves all these problems by enabling **direct device-to-device** file tr
 
 ### Production Deployment
 
+**Vercel (Recommended)**
+1. **Connect your GitHub repository** to Vercel
+2. **Deploy automatically** - Vercel handles everything
+3. **Access your app** at `https://your-app.vercel.app`
+
+**Manual Deployment**
 1. **Build the application**
    ```bash
    npm run build
@@ -114,8 +128,6 @@ Tunnel solves all these problems by enabling **direct device-to-device** file tr
    ```bash
    npm start
    ```
-
-The server will start on port 3000 and show network URLs for mobile access.
 
 ## 📖 How to Use
 
@@ -160,9 +172,11 @@ The server will start on port 3000 and show network URLs for mobile access.
 ### Built With
 - **Frontend**: Next.js 15, React 19, TypeScript
 - **Styling**: Tailwind CSS
-- **Signaling**: Socket.io
+- **Signaling**: Next.js API Routes (Vercel-compatible)
 - **P2P**: WebRTC Data Channels
+- **Storage**: File-based persistence (`tunnels.json`)
 - **Font**: Inter
+- **Icons**: Lucide React
 
 ### Browser Support
 - ✅ Chrome 80+
@@ -217,9 +231,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - **WebRTC** - For enabling peer-to-peer connections
-- **Socket.io** - For reliable signaling
-- **Next.js** - For the amazing React framework
+- **Next.js** - For the amazing React framework and API routes
+- **Vercel** - For seamless serverless deployment
 - **Tailwind CSS** - For beautiful, utility-first styling
+- **Lucide React** - For clean, consistent icons
 
 ## 📞 Support
 
