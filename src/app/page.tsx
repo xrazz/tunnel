@@ -1,103 +1,597 @@
-import Image from "next/image";
+'use client';
+
+import { useEffect, useState, useRef } from 'react';
+import { io, Socket } from 'socket.io-client';
+import { Github } from 'lucide-react';
+
+type ConnectionState = 'idle' | 'creating' | 'created' | 'joining' | 'connected';
+type FileTransfer = {
+  id: string;
+  name: string;
+  size: number;
+  progress: number;
+  status: 'sending' | 'receiving' | 'completed';
+  direction: 'send' | 'receive';
+  startTime?: number;
+  speed?: number;
+};
+
+const formatSpeed = (bytesPerSecond: number): string => {
+  if (bytesPerSecond < 1024) return `${bytesPerSecond.toFixed(0)} B/s`;
+  if (bytesPerSecond < 1024 * 1024) return `${(bytesPerSecond / 1024).toFixed(1)} KB/s`;
+  return `${(bytesPerSecond / (1024 * 1024)).toFixed(1)} MB/s`;
+};
+
+const getMimeType = (filename: string): string => {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  const mimeTypes: { [key: string]: string } = {
+    'txt': 'text/plain',
+    'pdf': 'application/pdf',
+    'doc': 'application/msword',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'xls': 'application/vnd.ms-excel',
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'ppt': 'application/vnd.ms-powerpoint',
+    'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'gif': 'image/gif',
+    'webp': 'image/webp',
+    'svg': 'image/svg+xml',
+    'mp4': 'video/mp4',
+    'webm': 'video/webm',
+    'mp3': 'audio/mpeg',
+    'wav': 'audio/wav',
+    'zip': 'application/zip',
+    'rar': 'application/x-rar-compressed',
+    '7z': 'application/x-7z-compressed',
+    'json': 'application/json',
+    'xml': 'application/xml',
+    'html': 'text/html',
+    'css': 'text/css',
+    'js': 'application/javascript',
+    'md': 'text/markdown'
+  };
+  return mimeTypes[ext || ''] || 'application/octet-stream';
+};
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [state, setState] = useState<ConnectionState>('idle');
+  const [tunnelCode, setTunnelCode] = useState('');
+  const [inputCode, setInputCode] = useState('');
+  const [error, setError] = useState('');
+  const [files, setFiles] = useState<FileTransfer[]>([]);
+  
+  const socketRef = useRef<Socket | null>(null);
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const dataChannelRef = useRef<RTCDataChannel | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingCandidatesRef = useRef<RTCIceCandidate[]>([]);
+  const tunnelCodeRef = useRef<string>('');
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
+  useEffect(() => {
+    socketRef.current = io({
+      transports: ['websocket', 'polling']
+    });
+    
+    const handlePeerJoined = async ({ peerId }: { peerId: string }) => {
+      await createOffer(peerId);
+    };
+
+    const handleSignal = async ({ signal, from }: { signal: any; from: string }) => {
+      if (!peerConnectionRef.current) {
+        await setupPeerConnection(from);
+      }
+
+      if (signal.type === 'offer') {
+        await peerConnectionRef.current!.setRemoteDescription(new RTCSessionDescription(signal));
+        
+        if (pendingCandidatesRef.current.length > 0) {
+          for (const candidate of pendingCandidatesRef.current) {
+            await peerConnectionRef.current!.addIceCandidate(candidate);
+          }
+          pendingCandidatesRef.current = [];
+        }
+        
+        const answer = await peerConnectionRef.current!.createAnswer();
+        await peerConnectionRef.current!.setLocalDescription(answer);
+        socketRef.current!.emit('signal', { code: tunnelCodeRef.current, signal: answer, to: from });
+      } else if (signal.type === 'answer') {
+        await peerConnectionRef.current!.setRemoteDescription(new RTCSessionDescription(signal));
+        
+        if (pendingCandidatesRef.current.length > 0) {
+          for (const candidate of pendingCandidatesRef.current) {
+            await peerConnectionRef.current!.addIceCandidate(candidate);
+          }
+          pendingCandidatesRef.current = [];
+        }
+      } else if (signal.candidate) {
+        try {
+          const candidate = new RTCIceCandidate(signal.candidate);
+          
+          if (peerConnectionRef.current?.remoteDescription) {
+            await peerConnectionRef.current.addIceCandidate(candidate);
+          } else {
+            pendingCandidatesRef.current.push(candidate);
+          }
+        } catch (e) {
+          console.error('Error adding ICE candidate:', e);
+        }
+      }
+    };
+
+    const handlePeerDisconnected = () => {
+      setState('idle');
+      setTunnelCode('');
+      tunnelCodeRef.current = '';
+      setError('Peer disconnected');
+      cleanup();
+    };
+
+    socketRef.current.on('peer-joined', handlePeerJoined);
+    socketRef.current.on('signal', handleSignal);
+    socketRef.current.on('peer-disconnected', handlePeerDisconnected);
+
+    return () => {
+      socketRef.current?.disconnect();
+      cleanup();
+    };
+  }, []);
+
+  const cleanup = () => {
+    dataChannelRef.current?.close();
+    peerConnectionRef.current?.close();
+    dataChannelRef.current = null;
+    peerConnectionRef.current = null;
+    pendingCandidatesRef.current = [];
+  };
+
+  const setupPeerConnection = async (peerId: string) => {
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    });
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socketRef.current!.emit('signal', {
+          code: tunnelCodeRef.current,
+          signal: { candidate: event.candidate },
+          to: peerId
+        });
+      }
+    };
+
+    pc.ondatachannel = (event) => {
+      setupDataChannel(event.channel);
+    };
+
+    peerConnectionRef.current = pc;
+  };
+
+  const createOffer = async (peerId: string) => {
+    await setupPeerConnection(peerId);
+    
+    const dataChannel = peerConnectionRef.current!.createDataChannel('fileTransfer');
+    setupDataChannel(dataChannel);
+
+    const offer = await peerConnectionRef.current!.createOffer();
+    await peerConnectionRef.current!.setLocalDescription(offer);
+    
+    socketRef.current!.emit('signal', { code: tunnelCodeRef.current, signal: offer, to: peerId });
+  };
+
+  const setupDataChannel = (channel: RTCDataChannel) => {
+    dataChannelRef.current = channel;
+    
+    let receivedData: ArrayBuffer[] = [];
+    let fileMetadata: { name: string; size: number; id: string } | null = null;
+    let receivedSize = 0;
+
+    channel.onopen = () => {
+      setState('connected');
+      setError('');
+    };
+
+    channel.onmessage = (event) => {
+      if (typeof event.data === 'string') {
+        const metadata = JSON.parse(event.data);
+        fileMetadata = metadata;
+        receivedData = [];
+        receivedSize = 0;
+        
+        setFiles(prev => [...prev, {
+          id: metadata.id,
+          name: metadata.name,
+          size: metadata.size,
+          progress: 0,
+          status: 'receiving',
+          direction: 'receive',
+          startTime: Date.now(),
+          speed: 0
+        }]);
+      } else if (event.data instanceof ArrayBuffer) {
+        if (!fileMetadata) return;
+        
+        receivedData.push(event.data);
+        receivedSize += event.data.byteLength;
+
+        const progress = (receivedSize / fileMetadata.size) * 100;
+        const currentFileId = fileMetadata.id;
+        
+        setFiles(prev => prev.map(f => {
+          if (f.id === currentFileId && f.startTime) {
+            const elapsed = (Date.now() - f.startTime) / 1000;
+            const speed = elapsed > 0 ? receivedSize / elapsed : 0;
+            return { ...f, progress, speed };
+          }
+          return f.id === currentFileId ? { ...f, progress } : f;
+        }));
+
+        if (receivedSize >= fileMetadata.size) {
+          const mimeType = getMimeType(fileMetadata.name);
+          const blob = new Blob(receivedData, { type: mimeType });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileMetadata.name;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          
+          setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }, 100);
+
+          setFiles(prev => prev.map(f => 
+            f.id === currentFileId ? { ...f, status: 'completed', progress: 100 } : f
+          ));
+
+          fileMetadata = null;
+          receivedData = [];
+          receivedSize = 0;
+        }
+      }
+    };
+
+    channel.onclose = () => {
+      setState('idle');
+      setTunnelCode('');
+    };
+
+    channel.onerror = (error) => {
+      console.error('Data channel error:', error);
+    };
+  };
+
+  const handleCreateTunnel = () => {
+    setState('creating');
+    setError('');
+    socketRef.current!.emit('create-tunnel', ({ code }: { code: string }) => {
+      setTunnelCode(code);
+      tunnelCodeRef.current = code;
+      setState('created');
+    });
+  };
+
+  const handleJoinTunnel = () => {
+    if (!inputCode.trim()) {
+      setError('Please enter a tunnel code');
+      return;
+    }
+    
+    setState('joining');
+    setError('');
+    
+    const codeToJoin = inputCode.toUpperCase().trim();
+    
+    socketRef.current!.emit('join-tunnel', { code: codeToJoin }, async (response: any) => {
+      if (response.success) {
+        setTunnelCode(codeToJoin);
+        tunnelCodeRef.current = codeToJoin;
+        await setupPeerConnection(response.peerId);
+      } else {
+        setError(response.error);
+        setState('idle');
+      }
+    });
+  };
+
+  const sendFile = (file: File, channel: RTCDataChannel) => {
+    const fileId = Math.random().toString(36).substr(2, 9);
+    const metadata = {
+      id: fileId,
+      name: file.name,
+      size: file.size
+    };
+
+    const startTime = Date.now();
+    setFiles(prev => [...prev, {
+      id: fileId,
+      name: file.name,
+      size: file.size,
+      progress: 0,
+      status: 'sending',
+      direction: 'send',
+      startTime,
+      speed: 0
+    }]);
+
+    channel.send(JSON.stringify(metadata));
+
+    const chunkSize = 16384;
+    const maxBufferSize = 16384 * 64;
+    let offset = 0;
+    let lastUpdate = startTime;
+    let lastOffset = 0;
+
+    const sendChunk = () => {
+      if (offset >= file.size) {
+        setFiles(prev => prev.map(f => 
+          f.id === fileId ? { ...f, status: 'completed', progress: 100 } : f
+        ));
+        return;
+      }
+
+      if (channel.bufferedAmount > maxBufferSize) {
+        channel.addEventListener('bufferedamountlow', sendChunk, { once: true });
+        return;
+      }
+
+      const slice = file.slice(offset, offset + chunkSize);
+      const reader = new FileReader();
+      
+      reader.onload = (event) => {
+        const result = event.target?.result;
+        if (result instanceof ArrayBuffer && channel.readyState === 'open') {
+          channel.send(result);
+          offset += chunkSize;
+          
+          const now = Date.now();
+          const timeDiff = (now - lastUpdate) / 1000;
+          const bytesDiff = offset - lastOffset;
+          
+          if (timeDiff >= 0.5) {
+            const speed = bytesDiff / timeDiff;
+            lastUpdate = now;
+            lastOffset = offset;
+            
+            const progress = Math.min((offset / file.size) * 100, 100);
+            setFiles(prev => prev.map(f => 
+              f.id === fileId ? { ...f, progress, speed } : f
+            ));
+          } else {
+            const progress = Math.min((offset / file.size) * 100, 100);
+            setFiles(prev => prev.map(f => 
+              f.id === fileId ? { ...f, progress } : f
+            ));
+          }
+          
+          sendChunk();
+        }
+      };
+      
+      reader.readAsArrayBuffer(slice);
+    };
+
+    channel.bufferedAmountLowThreshold = maxBufferSize / 2;
+    sendChunk();
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !dataChannelRef.current) return;
+
+    sendFile(file, dataChannelRef.current);
+  };
+
+  return (
+    <div className="min-h-screen flex items-start justify-center p-4 pt-16" style={{ backgroundColor: '#fff' }}>
+      <div className="w-full max-w-md">
+        <div className="text-center mb-12">
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <div className="bg-black text-white px-4 py-2 font-bold text-3xl flex items-center gap-3">
+              <img src="/logo.png" alt="Tunnel Logo" className="h-12 w-12 brightness-0 invert" />
+              TUNNEL
+            </div>
+          </div>
+          <p className="text-base font-medium" style={{ color: 'var(--muted)' }}>
+            Peer-to-peer file sharing
+          </p>
+        </div>
+
+        <div className="border p-8" style={{ backgroundColor: '#fff', borderColor: 'var(--border)' }}>
+          {state === 'idle' && (
+            <div className="space-y-4">
+              <button
+                onClick={handleCreateTunnel}
+                className="w-full py-3 px-4 rounded-lg font-medium transition-colors"
+                style={{ 
+                  backgroundColor: 'var(--foreground)', 
+                  color: '#fff'
+                }}
+              >
+                Create Tunnel
+              </button>
+              
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t" style={{ borderColor: 'var(--border)' }}></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="px-2" style={{ backgroundColor: '#fff', color: 'var(--muted)' }}>
+                    Or
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  placeholder="Enter tunnel code"
+                  value={inputCode}
+                  onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+                  maxLength={5}
+                  className="w-full py-3 px-4 rounded-lg border text-center text-sm font-mono uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{ 
+                    borderColor: 'var(--border)',
+                    color: 'var(--text)',
+                    backgroundColor: 'var(--filler)'
+                  }}
+                />
+                <button
+                  onClick={handleJoinTunnel}
+                  className="w-full py-3 px-4 rounded-lg border font-medium transition-colors"
+                  style={{ 
+                    borderColor: 'var(--border)',
+                    color: 'var(--foreground)'
+                  }}
+                >
+                  Join Tunnel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {state === 'created' && (
+            <div className="text-center space-y-6">
+              <div>
+                <p className="text-sm font-medium mb-3" style={{ color: 'var(--muted)' }}>
+                  Share this code with your peer
+                </p>
+                <div 
+                  className="text-5xl font-bold font-mono tracking-wider py-6 rounded-lg"
+                  style={{ 
+                    backgroundColor: 'var(--filler)',
+                    color: 'var(--foreground)'
+                  }}
+                >
+                  {tunnelCode}
+                </div>
+              </div>
+              <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>
+                Waiting for peer to join...
+              </p>
+            </div>
+          )}
+
+          {(state === 'creating' || state === 'joining') && (
+            <div className="text-center py-8">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent" style={{ color: 'var(--muted)' }}></div>
+              <p className="mt-4 text-sm" style={{ color: 'var(--muted)' }}>
+                {state === 'creating' ? 'Creating tunnel...' : 'Joining tunnel...'}
+              </p>
+            </div>
+          )}
+
+          {state === 'connected' && (
+            <div className="space-y-6">
+              <div className="text-center">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full" style={{ backgroundColor: '#d4edda', color: '#155724' }}>
+                  <div className="w-2 h-2 bg-current rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium">Connected</span>
+                </div>
+                {tunnelCode && (
+                  <p className="mt-2 text-sm font-mono" style={{ color: 'var(--muted)' }}>
+                    Tunnel: {tunnelCode}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-3 px-4 rounded-lg font-medium transition-colors"
+                  style={{ 
+                    backgroundColor: 'var(--foreground)',
+                    color: '#fff'
+                  }}
+                >
+                  Send File
+                </button>
+              </div>
+
+              {files.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                    File Transfers
+                  </p>
+                  {files.map((file) => (
+                    <div 
+                      key={file.id} 
+                      className="p-3 rounded-lg border"
+                      style={{ borderColor: 'var(--border)' }}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
+                            {file.name}
+                          </p>
+                          <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--muted)' }}>
+                            {file.status === 'sending' && (
+                              <>Sending{file.speed && file.speed > 0 ? ` • ${formatSpeed(file.speed)}` : '...'}</>
+                            )}
+                            {file.status === 'receiving' && (
+                              <>Receiving{file.speed && file.speed > 0 ? ` • ${formatSpeed(file.speed)}` : '...'}</>
+                            )}
+                            {file.status === 'completed' && (file.direction === 'send' ? 'Sent ✓' : 'Received ✓')}
+                          </p>
+                        </div>
+                        <span className="text-xs font-medium ml-2" style={{ color: 'var(--muted)' }}>
+                          {file.status === 'completed' ? '100%' : `${Math.round(file.progress)}%`}
+                        </span>
+                      </div>
+                      {(file.status === 'sending' || file.status === 'receiving') && (
+                        <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--filler)' }}>
+                          <div 
+                            className="h-full rounded-full transition-all duration-300"
+                            style={{ 
+                              width: `${file.progress}%`,
+                              backgroundColor: file.status === 'sending' ? '#0066cc' : 'var(--foreground)'
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {error && (
+            <div className="mt-4 p-3 rounded-lg text-sm text-center" style={{ backgroundColor: '#f8d7da', color: '#721c24' }}>
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-8 text-center">
+          <p className="text-sm font-medium mb-2" style={{ color: 'var(--muted)' }}>
+            Open source • Peer-to-peer • No server storage
+          </p>
+          <a 
+            href="https://github.com/xrazz/tunnel" 
+            target="_blank" 
             rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-sm hover:underline"
+            style={{ color: 'var(--muted)' }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
+            <Github size={16} />
+            Contribute
           </a>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
     </div>
   );
 }
