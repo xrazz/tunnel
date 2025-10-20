@@ -1,4 +1,4 @@
-# Tunnel 🚇
+# Tunnel
 
 ![Tunnel Logo](public/logo.png)
 
