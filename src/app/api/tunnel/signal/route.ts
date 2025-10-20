@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTunnel, setTunnel } from '@/lib/tunnel-storage';
+import { getTunnel, setTunnel, TunnelSignal } from '@/lib/tunnel-storage';
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,17 +22,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Store the signal for the recipient to poll
-    if (!tunnel.signals) {
-      tunnel.signals = [];
-    }
-    
-    tunnel.signals.push({
+    const tunnelSignal: TunnelSignal = {
       signal,
       from,
       to,
       timestamp: Date.now()
-    });
-
+    };
+    
+    tunnel.signals.push(tunnelSignal);
     setTunnel(code.toUpperCase(), tunnel);
 
     return NextResponse.json({ 

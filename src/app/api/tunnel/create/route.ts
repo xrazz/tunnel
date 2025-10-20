@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateCode, setTunnel } from '@/lib/tunnel-storage';
+import { generateCode, setTunnel, Tunnel } from '@/lib/tunnel-storage';
 
 export async function POST(request: NextRequest) {
   try {
     const code = generateCode();
     const tunnelId = `tunnel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    const tunnel = {
+    const tunnel: Tunnel = {
       id: tunnelId,
       creator: tunnelId,
       joiner: null,

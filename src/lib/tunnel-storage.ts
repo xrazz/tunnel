@@ -3,8 +3,25 @@ import path from 'path';
 
 const TUNNELS_FILE = path.join(process.cwd(), 'tunnels.json');
 
-// Simple file-based storage for tunnels
-export const activeTunnels = new Map();
+// Types for tunnel storage
+export interface TunnelSignal {
+  signal: any;
+  from: string;
+  to: string;
+  timestamp: number;
+}
+
+export interface Tunnel {
+  id: string;
+  creator: string;
+  joiner: string | null;
+  createdAt: number;
+  signals: TunnelSignal[];
+}
+
+// Shared storage for tunnels across API routes
+// In production, this should be replaced with Redis or a database
+export const activeTunnels = new Map<string, Tunnel>();
 
 // Load tunnels from file
 function loadTunnels() {
@@ -14,7 +31,7 @@ function loadTunnels() {
       const tunnels = JSON.parse(data);
       activeTunnels.clear();
       for (const [code, tunnel] of Object.entries(tunnels)) {
-        activeTunnels.set(code, tunnel);
+        activeTunnels.set(code, tunnel as Tunnel);
       }
     }
   } catch (error) {
@@ -47,12 +64,12 @@ export function generateCode() {
   return code;
 }
 
-export function setTunnel(code: string, tunnel: any) {
+export function setTunnel(code: string, tunnel: Tunnel) {
   activeTunnels.set(code, tunnel);
   saveTunnels();
 }
 
-export function getTunnel(code: string) {
+export function getTunnel(code: string): Tunnel | undefined {
   return activeTunnels.get(code);
 }
 

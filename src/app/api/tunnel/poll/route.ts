@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTunnel, setTunnel } from '@/lib/tunnel-storage';
+import { getTunnel, setTunnel, TunnelSignal } from '@/lib/tunnel-storage';
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,11 +27,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Find signals for this peer
-    const signals = tunnel.signals?.filter(s => s.to === peerId) || [];
+    const signals = tunnel.signals.filter((s: TunnelSignal) => s.to === peerId);
     
     // Clear signals after retrieving them
-    if (tunnel.signals) {
-      tunnel.signals = tunnel.signals.filter(s => s.to !== peerId);
+    if (tunnel.signals.length > 0) {
+      tunnel.signals = tunnel.signals.filter((s: TunnelSignal) => s.to !== peerId);
       setTunnel(code.toUpperCase(), tunnel);
     }
 
