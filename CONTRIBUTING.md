@@ -7,8 +7,8 @@ Thank you for your interest in contributing! This document provides guidelines f
 1. **Fork the repository** on GitHub
 2. **Clone your fork** locally:
    ```bash
-   git clone https://github.com/your-username/tunnel.git
-   cd tunnel
+git clone https://github.com/xrazz/tunnel.git
+cd tunnel
    ```
 3. **Install dependencies**:
    ```bash

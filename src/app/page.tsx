@@ -156,12 +156,26 @@ export default function Home() {
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
+        // Debug: Log connection type
+        console.log('ICE Candidate:', event.candidate.type, event.candidate.candidate);
         socketRef.current!.emit('signal', { 
           code: tunnelCodeRef.current, 
           signal: { candidate: event.candidate }, 
           to: peerId 
         });
       }
+    };
+
+    // Debug: Log connection state changes
+    pc.onconnectionstatechange = () => {
+      console.log('Connection State:', pc.connectionState);
+      if (pc.connectionState === 'failed') {
+        console.error('Connection failed! Check TURN servers or network.');
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      console.log('ICE Connection State:', pc.iceConnectionState);
     };
 
     pc.ondatachannel = (event) => {

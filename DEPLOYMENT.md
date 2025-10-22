@@ -124,7 +124,7 @@ sudo apt-get install -y nodejs
 sudo apt-get install -y git
 
 # 4. Clone your repository
-git clone https://github.com/yourusername/tunnel.git
+git clone https://github.com/xrazz/tunnel.git
 cd tunnel
 
 # 5. Install dependencies
@@ -366,5 +366,5 @@ httpServer.get('/health', (req, res) => {
 
 ---
 
-**Need help? Open an issue on GitHub!** 🚀
+**Need help? Open an issue on [GitHub](https://github.com/xrazz/tunnel) or email rajtripathi2580@gmail.com** 🚀
 
