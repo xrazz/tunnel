@@ -388,9 +388,20 @@ export default function Home() {
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !dataChannelRef.current) return;
-    sendFile(file, dataChannelRef.current);
+    const selectedFiles = e.target.files;
+    if (!selectedFiles || selectedFiles.length === 0 || !dataChannelRef.current) return;
+    
+    // Send all selected files with small delay between each
+    Array.from(selectedFiles).forEach((file, index) => {
+      setTimeout(() => {
+        if (dataChannelRef.current) {
+          sendFile(file, dataChannelRef.current);
+        }
+      }, index * 100); // 100ms delay between each file start
+    });
+    
+    // Reset file input
+    e.target.value = '';
   };
 
   return (
@@ -458,9 +469,9 @@ export default function Home() {
                 {tunnelCode && <p className="mt-2 text-sm font-mono" style={{ color: 'var(--muted)' }}>Tunnel: {tunnelCode}</p>}
               </div>
               <div>
-                <input ref={fileInputRef} type="file" onChange={handleFileSelect} className="hidden" />
+                <input ref={fileInputRef} type="file" onChange={handleFileSelect} className="hidden" multiple />
                 <button onClick={() => fileInputRef.current?.click()} className="w-full py-3 px-4 rounded-lg font-medium transition-colors" style={{ backgroundColor: 'var(--foreground)', color: '#fff' }}>
-                  Send File
+                  Send Files
                 </button>
               </div>
               {files.length > 0 && (
