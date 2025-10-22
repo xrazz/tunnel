@@ -1,175 +1,86 @@
-# 🤝 Contributing to Tunnel
+# Contributing to Tunnel
 
-Thank you for your interest in contributing! This document provides guidelines for contributing to Tunnel.
+Thanks for your interest! Here's how to contribute.
 
-## 🚀 Getting Started
+## Getting Started
 
-1. **Fork the repository** on GitHub
-2. **Clone your fork** locally:
+1. Fork the repo
+2. Clone your fork:
    ```bash
-git clone https://github.com/xrazz/tunnel.git
-cd tunnel
+   git clone https://github.com/xrazz/tunnel.git
+   cd tunnel
    ```
-3. **Install dependencies**:
+3. Install dependencies:
    ```bash
    npm install
    ```
-4. **Start development server**:
+4. Start dev server:
    ```bash
    npm run dev
    ```
 
-## 📝 Development Guidelines
+## Making Changes
 
-### Code Style
-
-- Use TypeScript for type safety
-- Follow existing code formatting
-- Add comments for complex logic
-- Keep functions small and focused
-
-### Commit Messages
-
-Follow conventional commits:
-```
-feat: add new feature
-fix: bug fix
-docs: documentation changes
-style: formatting, missing semicolons, etc.
-refactor: code refactoring
-test: adding tests
-chore: maintenance tasks
-```
-
-Examples:
-```
-feat: add multiple file selection
-fix: resolve buffer overflow on large files
-docs: update README with deployment guide
-```
-
-### Pull Request Process
-
-1. Create a feature branch:
+1. Create a branch:
    ```bash
-   git checkout -b feature/your-feature-name
+   git checkout -b feature/your-feature
    ```
 
-2. Make your changes and commit:
+2. Make your changes
+
+3. Test it works:
+   - Desktop to desktop
+   - Desktop to mobile
+   - Different file sizes
+
+4. Commit:
    ```bash
    git add .
    git commit -m "feat: your feature description"
    ```
 
-3. Push to your fork:
+5. Push and open a PR:
    ```bash
-   git push origin feature/your-feature-name
+   git push origin feature/your-feature
    ```
 
-4. Open a Pull Request on GitHub
+## Commit Messages
 
-5. Wait for review and address feedback
+Use conventional commits:
+- `feat:` new feature
+- `fix:` bug fix
+- `docs:` documentation
+- `style:` formatting
+- `refactor:` code refactoring
 
-## 🎯 Areas for Contribution
+## What to Contribute
 
 ### High Priority
-
-- [ ] Multiple file selection and batch transfer
-- [ ] File compression before transfer
-- [ ] Resume interrupted transfers
-- [ ] QR code for easy mobile sharing
-- [ ] Transfer history
-
-### Medium Priority
-
-- [ ] Dark mode
-- [ ] Custom tunnel code
-- [ ] Password-protected tunnels
-- [ ] Transfer expiration time
-- [ ] File preview before download
+- Multiple file selection
+- Resume interrupted transfers
+- File compression
+- QR code sharing
+- Transfer history
 
 ### Nice to Have
+- Dark mode
+- Password-protected tunnels
+- Custom tunnel codes
+- Mobile app
 
-- [ ] Video/audio streaming
-- [ ] Text messaging
-- [ ] Screen sharing
-- [ ] Voice/video calls
-- [ ] Mobile app (React Native)
+## Bug Reports
 
-## 🐛 Bug Reports
+Include:
+1. What happened
+2. What you expected
+3. Steps to reproduce
+4. Browser/OS info
+5. Console errors (F12)
 
-When reporting bugs, include:
+## Questions?
 
-1. **Description** of the issue
-2. **Steps to reproduce**
-3. **Expected behavior**
-4. **Actual behavior**
-5. **Screenshots** (if applicable)
-6. **Browser/OS** information
-7. **Console errors** (F12 → Console)
+Open an issue on [GitHub](https://github.com/xrazz/tunnel) or email rajtripathi2580@gmail.com
 
-Example:
-```
-**Bug:** Connection stuck on "Waiting for peer"
+## License
 
-**Steps:**
-1. User A creates tunnel
-2. User B joins with code
-3. Connection stuck for User B
-
-**Expected:** Should show "Connected"
-**Actual:** Shows "Waiting for peer to join..."
-
-**Browser:** Chrome 120, Windows 11
-**Console:** [Error logs here]
-```
-
-## ✨ Feature Requests
-
-For feature requests, include:
-
-1. **Problem** you're trying to solve
-2. **Proposed solution**
-3. **Alternatives considered**
-4. **Use case** examples
-
-## 🔍 Code Review Checklist
-
-Before submitting PR:
-
-- [ ] Code follows project style
-- [ ] No console errors
-- [ ] Works on desktop and mobile
-- [ ] Tested with different file sizes
-- [ ] Tested across networks (different ISPs)
-- [ ] Documentation updated (if needed)
-- [ ] No breaking changes (or clearly documented)
-
-## 💡 Tips
-
-1. **Test thoroughly** - especially on mobile and different networks
-2. **Keep PRs focused** - one feature/fix per PR
-3. **Update docs** - if adding features
-4. **Ask questions** - open an issue for discussion first
-5. **Be patient** - reviews may take time
-
-## 📚 Resources
-
-### WebRTC
-- [WebRTC Docs](https://webrtc.org/)
-- [MDN WebRTC API](https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API)
-
-### Socket.IO
-- [Socket.IO Docs](https://socket.io/docs/v4/)
-
-### Next.js
-- [Next.js Docs](https://nextjs.org/docs)
-
-## 🙏 Thank You!
-
-Every contribution helps make Tunnel better for everyone. Thank you for your time and effort!
-
-## 📄 License
-
-By contributing, you agree that your contributions will be licensed under the MIT License.
-
+By contributing, you agree your contributions will be licensed under MIT.
