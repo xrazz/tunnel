@@ -21,6 +21,7 @@ Share files directly between devices. Your files never touch our servers - they 
 - **Private** - Direct peer-to-peer, no server storage
 - **Fast** - Limited only by your upload speed
 - **Simple** - No signup, no tracking, no data collection
+- **Batch Transfer** - Send multiple files at once
 - **Open Source** - Check the code yourself
 
 ## Tech Stack
