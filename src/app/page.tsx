@@ -408,10 +408,11 @@ export default function Home() {
     <div className="min-h-screen flex items-start justify-center p-4 pt-16" style={{ backgroundColor: '#fff' }}>
       <div className="w-full max-w-md">
         <div className="text-center mb-12">
-          <div className="flex items-center justify-center gap-4 mb-4">
-            <div className="bg-black text-white px-4 py-2 font-bold text-3xl flex items-center gap-3">
-              <img src="/logo.png" alt="Tunnel Logo" className="h-12 w-12 brightness-0 invert" />
-              TUNNEL
+          <div className="flex items-center justify-center gap-4 mb-2">
+            <div className="flex items-center justify-center w-full">
+              <h1 className="text-6xl font-bold text-black font-jersey10">
+                TUNNEL
+              </h1>
             </div>
           </div>
           <p className="text-base font-medium" style={{ color: 'var(--muted)' }}>
