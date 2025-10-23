@@ -405,25 +405,25 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex items-start justify-center p-4 pt-16" style={{ backgroundColor: '#fff' }}>
+    <div className="min-h-screen flex items-start justify-center p-4 pt-16" style={{ backgroundColor: '#141414' }}>
       <div className="w-full max-w-md">
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-4 mb-2">
             <div className="flex items-center justify-center w-full">
-              <h1 className="text-6xl font-bold text-black font-jersey10">
+              <h1 className="text-6xl font-bold text-white font-jersey10">
                 TUNNEL
               </h1>
             </div>
           </div>
-          <p className="text-base font-medium" style={{ color: 'var(--muted)' }}>
+          <p className="text-sm font-medium uppercase" style={{ color: 'var(--muted)' }}>
             Peer-to-peer file sharing
           </p>
         </div>
 
-        <div className="border p-8" style={{ backgroundColor: '#fff', borderColor: 'var(--border)' }}>
+        <div className="border p-8" style={{ backgroundColor: '#141414', borderColor: 'var(--border)' }}>
           {state === 'idle' && (
             <div className="space-y-4">
-              <button onClick={handleCreateTunnel} className="w-full py-3 px-4 rounded-lg font-medium transition-colors" style={{ backgroundColor: 'var(--foreground)', color: '#fff' }}>
+              <button onClick={handleCreateTunnel} className="w-full py-3 px-4 rounded-lg font-medium transition-colors" style={{ backgroundColor: '#fff', color: '#141414' }}>
                 Create Tunnel
               </button>
               <div className="relative">
@@ -431,12 +431,12 @@ export default function Home() {
                   <div className="w-full border-t" style={{ borderColor: 'var(--border)' }}></div>
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="px-2" style={{ backgroundColor: '#fff', color: 'var(--muted)' }}>Or</span>
+                  <span className="px-2" style={{ backgroundColor: '#141414', color: 'var(--muted)' }}>Or</span>
                 </div>
               </div>
               <div className="space-y-3">
-                <input type="text" placeholder="Enter tunnel code" value={inputCode} onChange={(e) => setInputCode(e.target.value.toUpperCase())} maxLength={5} className="w-full py-3 px-4 rounded-lg border text-center text-sm font-mono uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-blue-500" style={{ borderColor: 'var(--border)', color: 'var(--text)', backgroundColor: 'var(--filler)' }} />
-                <button onClick={handleJoinTunnel} className="w-full py-3 px-4 rounded-lg border font-medium transition-colors" style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}>
+                <input type="text" placeholder="Enter tunnel code" value={inputCode} onChange={(e) => setInputCode(e.target.value.toUpperCase())} maxLength={5} className="w-full py-3 px-4 rounded-lg border text-center text-sm font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-blue-500" style={{ borderColor: 'var(--border)', color: 'var(--text)', backgroundColor: 'transparent' }} />
+                <button onClick={handleJoinTunnel} className="w-full py-3 px-4 rounded-lg border font-medium transition-colors" style={{ borderColor: 'var(--border)', color: '#fff', backgroundColor: 'var(--filler)' }}>
                   Join Tunnel
                 </button>
               </div>
@@ -446,17 +446,17 @@ export default function Home() {
           {state === 'created' && (
             <div className="text-center space-y-6">
               <div>
-                <p className="text-sm font-medium mb-3" style={{ color: 'var(--muted)' }}>Share this code with your peer</p>
+                <p className="text-xs font-medium uppercase mb-3" style={{ color: 'var(--muted)' }}>Share this code with your peer</p>
                 <div className="text-5xl font-bold font-mono tracking-wider py-6 rounded-lg" style={{ backgroundColor: 'var(--filler)', color: 'var(--foreground)' }}>{tunnelCode}</div>
               </div>
-              <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>Waiting for peer to join...</p>
+              <p className="text-xs font-medium uppercase" style={{ color: 'var(--muted)' }}>Waiting for peer to join<span className="inline-block ml-1 h-2 w-2 animate-spin rounded-full border border-current border-r-transparent"></span></p>
             </div>
           )}
 
           {(state === 'creating' || state === 'joining') && (
             <div className="text-center py-8">
               <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent" style={{ color: 'var(--muted)' }}></div>
-              <p className="mt-4 text-sm" style={{ color: 'var(--muted)' }}>{state === 'creating' ? 'Creating tunnel...' : 'Joining tunnel...'}</p>
+              <p className="mt-4 text-xs font-medium uppercase" style={{ color: 'var(--muted)' }}>{state === 'creating' ? 'Creating tunnel...' : 'Joining tunnel...'}</p>
             </div>
           )}
 
@@ -465,24 +465,24 @@ export default function Home() {
               <div className="text-center">
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full" style={{ backgroundColor: '#d4edda', color: '#155724' }}>
                   <div className="w-2 h-2 bg-current rounded-full animate-pulse"></div>
-                  <span className="text-sm font-medium">Connected</span>
+                  <span className="text-xs font-medium uppercase">Connected</span>
                 </div>
-                {tunnelCode && <p className="mt-2 text-sm font-mono" style={{ color: 'var(--muted)' }}>Tunnel: {tunnelCode}</p>}
+                {tunnelCode && <p className="mt-2 text-xs font-medium uppercase font-mono" style={{ color: 'var(--muted)' }}>Tunnel: {tunnelCode}</p>}
               </div>
               <div>
                 <input ref={fileInputRef} type="file" onChange={handleFileSelect} className="hidden" multiple />
-                <button onClick={() => fileInputRef.current?.click()} className="w-full py-3 px-4 rounded-lg font-medium transition-colors" style={{ backgroundColor: 'var(--foreground)', color: '#fff' }}>
+                <button onClick={() => fileInputRef.current?.click()} className="w-full py-3 px-4 rounded-lg font-medium transition-colors" style={{ backgroundColor: '#fff', color: '#141414' }}>
                   Send Files
                 </button>
               </div>
               {files.length > 0 && (
                 <div className="space-y-3">
-                  <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>File Transfers</p>
+                  <p className="text-xs font-medium uppercase" style={{ color: 'var(--text)' }}>File Transfers</p>
                   {files.map((file) => (
                     <div key={file.id} className="p-3 rounded-lg border" style={{ borderColor: 'var(--border)' }}>
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{file.name}</p>
+                          <p className="text-xs font-medium truncate" style={{ color: 'var(--text)' }}>{file.name}</p>
                           <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--muted)' }}>
                             {file.status === 'sending' && (<>Sending{file.speed && file.speed > 0 ? ` • ${formatSpeed(file.speed)}` : '...'}</>)}
                             {file.status === 'receiving' && (<>Receiving{file.speed && file.speed > 0 ? ` • ${formatSpeed(file.speed)}` : '...'}</>)}
@@ -509,7 +509,7 @@ export default function Home() {
         </div>
 
         <div className="mt-8 text-center">
-          <p className="text-sm font-medium mb-2" style={{ color: 'var(--muted)' }}>Open source • Peer-to-peer • No server storage</p>
+          <p className="text-xs uppercase mb-2" style={{ color: 'var(--muted)' }}>Open source • Peer-to-peer • No server storage</p>
           <a href="https://github.com/xrazz/tunnel" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm hover:underline" style={{ color: 'var(--muted)' }}>
             <Github size={16} />Contribute
           </a>
